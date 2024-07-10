@@ -1,119 +1,144 @@
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
 
-typedef struct {
+typedef struct s_philosopher
+{
     int id;
-    int state;
     int alive;
-} philosopher_t;
+    pthread_mutex_t *left_fork;
+    pthread_mutex_t *right_fork;
+    struct s_info *info;
+} t_philosopher;
 
-
-typedef struct PhilosopherArgs {
-  philosopher_t* philosophers;
-  int num_philosophers;
-} PhilosopherArgs;
-
-
-typedef struct info
+typedef struct s_info
 {
-	int	*chopsticks;
-	int	nbr_philo;
-	pthread_mutex_t	mutex;
-	philosopher_t	*philosophers;
-}t_info;
+    int num_philosophers;
+    int time_eat;
+    int time_sleep;
+    int time_die;
+    t_philosopher *philosophers;
+    pthread_mutex_t *forks;
+    pthread_mutex_t death_mutex;
+    int *time_since_last_meal;
+} t_info;
 
-void *philosopher_routine(t_info *info)
+void eat(t_philosopher *philosopher, int time)
 {
-	int philosopher_id = info->(philosophores.id);
-	while (1)
-  	{
-    	printf("Philosopher %d is thinking.\n", philosopher_id);
-    	usleep(rand() % 3 + 1);
-		pthread_mutex_lock(&info->mutex);
-		while (!(info->chopsticks[philosopher_id] && info->chopsticks[(philosopher_id + 1) % info->nbr_philo]))
-		{
-			printf("Philosopher %d couldn't acquire chopsticks and is waiting.\n", philosopher_id);
-			pthread_mutex_unlock(&info->mutex);
-			sleep(rand() % 2 + 1);
-			pthread_mutex_lock(&info->mutex);
-			pthread_mutex_unlock(&info->mutex);
-			sleep(rand() % 2 + 1);
-			pthread_mutex_lock(&info->mutex);
-		}
-		info->chopsticks[philosopher_id] = 0;
-		info->chopsticks[(philosopher_id + 1) % info->nbr_philo] = 0;
-		printf("Philosopher %d acquired chopsticks and is eating.\n", philosopher_id);
-		sleep(rand() % 2 + 1);
-		pthread_mutex_unlock(&info->mutex);
-		printf("Philosopher %d is sleeping.\n", philosopher_id);
-		sleep(rand() % 3 + 1);
-		if (!info->philosophers[philosopher_id].alive)
-			break;
-    }
-    return(NULL);
+    printf("Philosopher %d is eating.\n", philosopher->id);
+    usleep(time);
 }
 
-
-int main(int ac, char **av)
+void ft_sleep(t_philosopher *philosopher, int time)
 {
-	pthread_mutex_t mutex;
-	t_info *general_info;
-	int i = 0, j = 0;
-    int philo_nbr = atoi(av[1]);
-    if (philo_nbr <= 0)
-	{
-        printf("Number of philosophers must be a positive integer.\n");
+    printf("Philosopher %d is sleeping.\n", philosopher->id);
+    usleep(time);
+}
+
+void *philosopher_routine(void *arg)
+{
+    t_philosopher *philosopher = (t_philosopher *)arg;
+    t_info *info = philosopher->info;
+
+    while (1)
+    {
+        //thinking
+        printf("Philosopher %d is thinking.\n", philosopher->id);
+        //eating
+        pthread_mutex_lock(philosopher->left_fork);
+        printf("Philosopher %d has taken the left fork.\n", philosopher->id);
+        pthread_mutex_lock(philosopher->right_fork);
+        printf("Philosopher %d has taken the right fork.\n", philosopher->id);
+        eat(philosopher, info->time_eat);
+        info->time_since_last_meal[philosopher->id] = 0;
+        pthread_mutex_unlock(philosopher->right_fork);
+        printf("Philosopher %d has put down the right fork.\n", philosopher->id);
+        pthread_mutex_unlock(philosopher->left_fork);
+        printf("Philosopher %d has put down the left fork.\n", philosopher->id);
+        //sleeping
+        ft_sleep(philosopher, info->time_sleep);
+        pthread_mutex_lock(&info->death_mutex);
+        info->time_since_last_meal[philosopher->id] += info->time_sleep;
+        if(info->time_since_last_meal[philosopher->id] >= info->time_die)
+            printf("Philosopher %d is dead.\n", philosopher->id);
+        pthread_mutex_unlock(&info->death_mutex);
+    }
+    return NULL;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 5)
+    {
+        printf("Required: %s num_philosophers time_eat time_sleep time_die\n", argv[0]);
         return (1);
     }
-    philosopher_t *philosophers = malloc(philo_nbr * sizeof(philosopher_t));
-    int *chopsticks = malloc(philo_nbr * sizeof(int));
-    pthread_t philosopher_thread[philo_nbr];
-    pthread_mutex_init(&mutex, NULL);
-
-	i = 0;
-    while (i < philo_nbr)
-	{
-        philosophers[i].id = i;
-        philosophers[i].state = 0;
-        philosophers[i].alive = 1;
-        chopsticks[i] = 1;
-		i++;
+    t_info info;
+    int i = 0;
+    info.num_philosophers = atoi(argv[1]);
+    info.time_eat = atoi(argv[2]) * 1000;
+    info.time_sleep = atoi(argv[3]) * 1000;
+    info.time_die = atoi(argv[4]) * 1000;
+    info.philosophers = malloc(info.num_philosophers * sizeof(t_philosopher));
+    info.forks = malloc(info.num_philosophers * sizeof(pthread_mutex_t));
+    info.time_since_last_meal = malloc(info.num_philosophers * sizeof(int));
+    //initiale variables
+    while (i < info.num_philosophers)
+    {
+        pthread_mutex_init(&info.forks[i], NULL);
+        info.philosophers[i].id = i;
+        info.philosophers[i].left_fork = &info.forks[i];
+        info.philosophers[i].right_fork = &info.forks[(i + 1) % info.num_philosophers];
+        info.philosophers[i].info = &info;
+        info.time_since_last_meal[i] = 0;
+        i++;
     }
-	i = 0;
-	while (i < philo_nbr)
-	{
-		general_info->chopsticks[i] = chopsticks[i];
-		i++; 
-	}
-	general_info->nbr_philo = philo_nbr;
-	general_info->mutex = mutex;
-	i = 0;
-	while (i < philo_nbr)
-	{
-		general_info->philosophers[i] = philosophers[i];
-		i++;	
-	}
-    for (i = 0; i < philo_nbr; i++) {
-        if (pthread_create(&philosopher_thread[i], NULL, philosopher_routine, (void *)&general_info) != 0)
-		{ 
-            printf("Error creating thread %d\n", i);
-            free(philosophers);
-            free(chopsticks);
-            pthread_mutex_destroy(&mutex);
+    pthread_mutex_init(&info.death_mutex, NULL);
+    pthread_t threads[info.num_philosophers];
+    i = 0;
+    while (i < info.num_philosophers)
+    {
+        if (pthread_create(&threads[i], NULL, philosopher_routine, &info.philosophers[i]))
+        {
+            perror("Failed to create thread");
+            return (1);
+        }
+        i++;
+    }
+    while (1)
+    {
+        for (int i = 0; i < info.num_philosophers; i++)
+        {
+            pthread_mutex_lock(&info.death_mutex);
+            info.time_since_last_meal[i] += 1000;
+            if (info.time_since_last_meal[i] > info.time_die)
+            {
+                printf("Philosopher %d has died.\n", i);
+                exit(1);
+            }
+            pthread_mutex_unlock(&info.death_mutex);
+        }
+        usleep(1000);
+    }
+    for (int i = 0; i < info.num_philosophers; i++)
+    {
+        if (pthread_join(threads[i], NULL))
+        {
+            perror("Failed to join thread");
             return 1;
         }
     }
-
-    for (i = 0; i < philo_nbr; i++) {
-        if (pthread_join(philosopher_thread[i], NULL) != 0) {
-            printf("Error joining thread %d\n", i);
-        }
+    for (int i = 0; i < info.num_philosophers; i++)
+    {
+        pthread_mutex_destroy(&info.forks[i]);
     }
 
-    pthread_mutex_destroy(&mutex);
-    free(philosophers);
-    free(chopsticks);
+    pthread_mutex_destroy(&info.death_mutex);
+    free(info.philosophers);
+    free(info.forks);
+    free(info.time_since_last_meal);
+
     return 0;
 }
 

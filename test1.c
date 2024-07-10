@@ -1,14 +1,17 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <unistd.h>
+# include <stdio.h>
+# include <stdlib.h>
+# include <pthread.h>
+# include <unistd.h>
 
 typedef struct s_philosopher
 {
     int id;
     pthread_mutex_t *left_fork;
     pthread_mutex_t *right_fork;
-    struct s_info *info;
+    int time_eat;
+    int time_die;
+    int time_sleep;
+    int time_last_meal;
 } t_philosopher;
 
 typedef struct s_info
@@ -29,49 +32,44 @@ void *philosopher_routine(void *arg)
     t_info *info = philosopher->info;
     int philosopher_id = philosopher->id;
     int j = 1;
-
     while (1)
     {
-        // Thinking untill he die
-        while(j && info->time_die)
+        while (j && info->time_die)
         {
             printf("Philosopher %d is thinking.\n", philosopher_id);
+            info->time_die--;
             if (!info->time_die)
             {
-                printf("Philosopher %d is thinking.\n", philosopher_id);
-                exit(1);
+                info->philosophers[philosopher_id].alive = 0;
+                break;
             }
-            info->time_die--;
         }
-        // Picking up forks
+        if (info->philosophers[philosopher_id].alive == 0)
+        {
+            printf("Philosopher %d is dead.\n", philosopher_id);
+            break;
+        }
         pthread_mutex_lock(philosopher->left_fork);
         pthread_mutex_lock(philosopher->right_fork);
         j = 0;
-        // Eating
         printf("Philosopher %d is eating.\n", philosopher_id);
         usleep(info->time_eat);
-
-        // Update last meal time
         pthread_mutex_lock(&info->death_mutex);
         info->time_since_last_meal[philosopher_id] = 0;
         pthread_mutex_unlock(&info->death_mutex);
-
-        // Putting down forks
         pthread_mutex_unlock(philosopher->right_fork);
         pthread_mutex_unlock(philosopher->left_fork);
-
-        // Sleeping
         printf("Philosopher %d is sleeping.\n", philosopher_id);
         usleep(info->time_sleep);
     }
-    return NULL;
+    return (NULL);
 }
 
 int main(int argc, char **argv)
 {
     if (argc != 5)
     {
-        printf("Usage: %s num_philosophers time_eat time_sleep time_die\n", argv[0]);
+        printf("Requiered: %s num_philosophers time_eat time_sleep time_die\n", argv[0]);
         return 1;
     }
     int i;
@@ -80,7 +78,6 @@ int main(int argc, char **argv)
     info.time_eat = atoi(argv[2]) * 1000;
     info.time_sleep = atoi(argv[3]) * 1000;
     info.time_die = atoi(argv[4]) * 1000;
-
     pthread_t threads[info.num_philosophers];
     info.philosophers = malloc(info.num_philosophers * sizeof(t_philosopher));
     info.forks = malloc(info.num_philosophers * sizeof(pthread_mutex_t));
@@ -94,6 +91,7 @@ int main(int argc, char **argv)
         info.philosophers[i].right_fork = &info.forks[(i + 1) % info.num_philosophers];
         info.philosophers[i].info = &info;
         info.time_since_last_meal[i] = 0;
+        info.philosophers[i].alive = 1;
         i++;
     }
     pthread_mutex_init(&info.death_mutex, NULL);
