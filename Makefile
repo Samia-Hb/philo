@@ -3,7 +3,7 @@ CC = cc
 CFLAGS = -Wall -Wextra -Werror
 RM = rm -f
 
-SRCS = test.c
+SRCS = main.c
 
 OBJS = $(SRCS:.c=.o)
 

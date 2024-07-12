@@ -43,26 +43,36 @@ void *philosopher_routine(void *arg)
 
     while (1)
     {
-        //thinking
+        // Thinking
         printf("Philosopher %d is thinking.\n", philosopher->id);
-        //eating
-        pthread_mutex_lock(philosopher->left_fork);
-        printf("Philosopher %d has taken the left fork.\n", philosopher->id);
-        pthread_mutex_lock(philosopher->right_fork);
-        printf("Philosopher %d has taken the right fork.\n", philosopher->id);
+        
+        // Picking up forks
+        if (philosopher->id % 2 == 0)
+        {
+            pthread_mutex_lock(philosopher->right_fork);
+            printf("Philosopher %d has taken the right fork.\n", philosopher->id);
+            pthread_mutex_lock(philosopher->left_fork);
+            printf("Philosopher %d has taken the left fork.\n", philosopher->id);
+        }
+        else
+        {
+            pthread_mutex_lock(philosopher->left_fork);
+            printf("Philosopher %d has taken the left fork.\n", philosopher->id);
+            pthread_mutex_lock(philosopher->right_fork);
+            printf("Philosopher %d has taken the right fork.\n", philosopher->id);
+        }
+
         eat(philosopher, info->time_eat);
+        pthread_mutex_lock(&info->death_mutex);
         info->time_since_last_meal[philosopher->id] = 0;
-        pthread_mutex_unlock(philosopher->right_fork);
-        printf("Philosopher %d has put down the right fork.\n", philosopher->id);
+        pthread_mutex_unlock(&info->death_mutex);
+
         pthread_mutex_unlock(philosopher->left_fork);
         printf("Philosopher %d has put down the left fork.\n", philosopher->id);
-        //sleeping
+        pthread_mutex_unlock(philosopher->right_fork);
+        printf("Philosopher %d has put down the right fork.\n", philosopher->id);
+
         ft_sleep(philosopher, info->time_sleep);
-        pthread_mutex_lock(&info->death_mutex);
-        info->time_since_last_meal[philosopher->id] += info->time_sleep;
-        if(info->time_since_last_meal[philosopher->id] >= info->time_die)
-            printf("Philosopher %d is dead.\n", philosopher->id);
-        pthread_mutex_unlock(&info->death_mutex);
     }
     return NULL;
 }
@@ -83,7 +93,6 @@ int main(int argc, char **argv)
     info.philosophers = malloc(info.num_philosophers * sizeof(t_philosopher));
     info.forks = malloc(info.num_philosophers * sizeof(pthread_mutex_t));
     info.time_since_last_meal = malloc(info.num_philosophers * sizeof(int));
-    //initiale variables
     while (i < info.num_philosophers)
     {
         pthread_mutex_init(&info.forks[i], NULL);
@@ -96,7 +105,6 @@ int main(int argc, char **argv)
     }
     pthread_mutex_init(&info.death_mutex, NULL);
     pthread_t threads[info.num_philosophers];
-    i = 0;
     while (i < info.num_philosophers)
     {
         if (pthread_create(&threads[i], NULL, philosopher_routine, &info.philosophers[i]))
@@ -108,7 +116,8 @@ int main(int argc, char **argv)
     }
     while (1)
     {
-        for (int i = 0; i < info.num_philosophers; i++)
+        i = 0;
+        while (i < info.num_philosophers)
         {
             pthread_mutex_lock(&info.death_mutex);
             info.time_since_last_meal[i] += 1000;
@@ -118,27 +127,30 @@ int main(int argc, char **argv)
                 exit(1);
             }
             pthread_mutex_unlock(&info.death_mutex);
+            i++;
         }
         usleep(1000);
     }
-    for (int i = 0; i < info.num_philosophers; i++)
+    i = 0;
+    while (i < info.num_philosophers)
     {
         if (pthread_join(threads[i], NULL))
         {
             perror("Failed to join thread");
-            return 1;
+            return (1);
         }
+        i++;
     }
-    for (int i = 0; i < info.num_philosophers; i++)
+    i = 0;
+    while (i < info.num_philosophers)
     {
         pthread_mutex_destroy(&info.forks[i]);
+        i++;
     }
-
     pthread_mutex_destroy(&info.death_mutex);
     free(info.philosophers);
     free(info.forks);
     free(info.time_since_last_meal);
-
     return 0;
 }
 
