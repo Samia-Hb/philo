@@ -6,7 +6,7 @@
 /*   By: shebaz <shebaz@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/07/03 12:27:04 by shebaz            #+#    #+#             */
-/*   Updated: 2024/07/12 09:53:43 by shebaz           ###   ########.fr       */
+/*   Updated: 2024/07/14 21:44:55 by shebaz           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -188,3 +188,10 @@ int	main(int argc, char **argv)
 	free(threads);
 	return (0);
 }
+
+=> chaque fork is representing by a mutex
+=> chaque philo is reprsented by a thread
+steps :
+	create philosophers->threads.
+	create forks->mutex.
+	make a philo routine.
