@@ -6,12 +6,13 @@
 /*   By: shebaz <shebaz@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/07/03 12:27:04 by shebaz            #+#    #+#             */
-/*   Updated: 2024/07/14 23:39:21 by shebaz           ###   ########.fr       */
+/*   Updated: 2024/07/17 11:18:28 by shebaz           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -23,6 +24,7 @@ typedef struct s_philosopher
 	pthread_mutex_t *left_fork;
 	pthread_mutex_t *right_fork;
 	t_info          *info;
+	int				state[3];
 } t_philosopher;
 
 typedef struct s_info
@@ -56,7 +58,7 @@ void *philosopher_routine(void *arg)
 	t_philosopher *philosopher = (t_philosopher *)arg;
 	t_info *info = philosopher->info;
 
-	while (!info->stop_simulation)
+	while (1)
 	{
 		printf("Philosopher %d is thinking\n", philosopher->id + 1);
 		info->time_since_last_meal[philosopher->id]++;
@@ -64,12 +66,11 @@ void *philosopher_routine(void *arg)
 		if (info->time_since_last_meal[philosopher->id] > info->time_die)
 		{
 			printf("Philosopher %d is dead\n", philosopher->id + 1);
-			info->stop_simulation = 1;
 			pthread_mutex_unlock(&info->death_mutex);
 			break ;
 		}
 		pthread_mutex_unlock(&info->death_mutex);
-		if (philosopher->id % 2 == 0)
+		if (philosopher->id == info->num_philosophers - 1)
 		{
 			pthread_mutex_lock(philosopher->right_fork);
 			printf("Philosopher %d has taken the right fork\n", philosopher->id + 1);
@@ -98,7 +99,6 @@ void initale_variable(char **argv, t_info *info)
 {
 	int i;
 
-	i = 0;
 	info->num_philosophers = atoi(argv[1]);
 	info->time_eat = atoi(argv[2]) * 1000;
 	info->time_sleep = atoi(argv[3]) * 1000;
@@ -107,6 +107,7 @@ void initale_variable(char **argv, t_info *info)
 	info->philosophers = (t_philosopher *)malloc(info->num_philosophers * sizeof(t_philosopher));
 	info->forks = (pthread_mutex_t *)malloc(info->num_philosophers * sizeof(pthread_mutex_t));
 	info->time_since_last_meal = (int *)malloc(info->num_philosophers * sizeof(int));
+	i = 0;
 	while (i < info->num_philosophers)
 	{
 		pthread_mutex_init(&info->forks[i], NULL);
@@ -140,18 +141,19 @@ void clean_up(t_info *info, pthread_t *threads)
 
 int main(int argc, char **argv)
 {
-	t_info *info;
-	pthread_t *threads;
-	int i;
+	t_info		*info;
+	pthread_t	*threads;
+	int			i;
 
 	if (argc != 5)
 	{
 		printf("Required: %s num_philosophers time_eat time_sleep time_die\n", argv[0]);
 		return (1);
 	}
-	if (argv[1] == "1")
+	if (!strcmp(argv[1],"1"))//one philo case
 	{
-		printf("there is only one philosopher\n");
+		printf("There is only one philosopher\n");
+		return (1);
 	}
 	info = (t_info *)malloc(sizeof(t_info));
 	initale_variable(argv, info);
