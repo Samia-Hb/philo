@@ -1,13 +1,12 @@
 NAME = philo
-CC = cc
-CFLAGS = -Wall -Wextra -Werror
+
+CC = cc #-fsanitize=thread -pthread -g3
+CFLAGS = -Wall -Wextra -Werror -pthread
 RM = rm -f
 
-SRCS = main.c
+SRCS = main.c philo.c simulation.c philo_utils.c parse.c ft_atoi.c
 
 OBJS = $(SRCS:.c=.o)
-
-.PHONY: all clean fclean re
 
 all: $(NAME)
 
